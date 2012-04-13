@@ -2,6 +2,7 @@ import json
 import redis
 import slumber
 import string
+import shlex
 
 host = "localhost"
 r = redis.Redis(host=host)
@@ -21,23 +22,75 @@ def output():
     pubsub = r.pubsub()
     pubsub.subscribe('in')
     for msg in pubsub.listen():
-        data = json.loads(msg['data'])['data']
-        print "Got %s in %s from %s" % (data['message'], data['channel'], data['sender'])
-        for command, func in COMMANDS.items():
-            if command in data['message']:
-                send(data['channel'], func(data))
-            else:
-                print data['message']
+        jsony = json.loads(msg['data'])
+        if jsony['type'] == 'privmsg':
+            data = jsony['data']
+            print "Got %s in %s from %s" % (data['message'], data['channel'], data['sender'])
+            for command, func in COMMANDS.items():
+                if command in data['message']:
+                    output = func(data)
+                    if output:
+                        send(data['channel'], output)
 
 def Info(data):
-    cmd = '!info '
+    import inspect
+    frame = inspect.currentframe()
+    name = inspect.getframeinfo(frame)[2]
+    func = globals()[name]
+    #import ipdb; ipdb.set_trace()
+    cmd = '!%s ' % string.lower(func.__name__)
+    words = shlex.split(data['message'].encode('ascii'))
+    #import ipdb; ipdb.set_trace()
+    try:
+        if len(words) > 2:
+            project, command = words[1:]
+        else:
+            command = 'absolute_url'
+            project = words[1]
+        val = api.project(project).get()
+        ret_val = "{%s}" % command
+        ret_val = ret_val.format(**val)
+        if ret_val.startswith('/'):
+            ret_val = "http://readthedocs.org%s" % ret_val
+        return ret_val
+    except Exception, e:
+        print "Error: %s" % e
+        print "Moving on, yo."
+
+
+def Status(data):
+    cmd = '!%s ' % string.lower(Status.__name__)
     project = data['message'].replace(cmd, '')
-    val = api.project(project).get()
-    #ret_val = " ".join(val.keys())
-    ret_val = "{absolute_url}".format(**val)
-    ret_val = "http://readthedocs.org%s" % ret_val
+    val = api.build(project).get(limit=1)
+    #import ipdb; ipdb.set_trace()
+    obj = val['objects'][0]
+    status = "Passed" if obj['success'] else "Failed"
+    ret_val = "%s: http://readthedocs.org%s (%s)" % (status, obj['absolute_url'], obj['date'])
     return ret_val
 
+def Build(data):
+    import inspect
+    frame = inspect.currentframe()
+    name = inspect.getframeinfo(frame)[2]
+    func = globals()[name]
+    #import ipdb; ipdb.set_trace()
+    cmd = '!%s ' % string.lower(func.__name__)
+    words = shlex.split(data['message'].encode('ascii'))
+    try:
+        if len(words) > 2:
+            project, version = words[1:]
+            print "Building %s at %s" % (project, version)
+        else:
+            version = 'latest'
+            project = words[1]
+        val = api.version('%s/%s' % (project, version)).build().get()
+        ret_val = "Building" if val['building'] else "Failed"
+        if ret_val.startswith('/'):
+            ret_val = "http://readthedocs.org%s" % ret_val
+        return ret_val
+    except Exception, e:
+        print "Error: %s" % e
+        print "Moving on, yo."
 
 loco = locals().copy()
 shit_we_need = [loco[func] for func in loco if str(type(loco[func])) == "<type 'function'>" and loco[func].__name__[0].isupper()]
