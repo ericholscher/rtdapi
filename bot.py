@@ -29,10 +29,6 @@ def output():
             else:
                 print data['message']
 
-def mkcommand(name, func):
-    func.cmd = name
-    return func
-
 def Info(data):
     cmd = '!info '
     project = data['message'].replace(cmd, '')
@@ -45,16 +41,6 @@ def Info(data):
 
 loco = locals().copy()
 shit_we_need = [loco[func] for func in loco if str(type(loco[func])) == "<type 'function'>" and loco[func].__name__[0].isupper()]
-
-"""
-#Shit we don't need :D
-for func in loco:
-    func = loco[func]
-    is_func =  str(type(func))
-    if is_func == "<type 'function'>":
-        if func.__name__[0].isupper():
-            shit_we_need += loco[func]
-"""
 
 COMMANDS = {}
 
