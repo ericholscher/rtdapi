@@ -7,6 +7,8 @@ import re
 from dateutil import parser
 from datetime import datetime
 
+PRODUCTION_DOMAIN = 'readthedocs.org'
+
 
 host = "localhost"
 r = redis.Redis(host=host)
@@ -92,7 +94,7 @@ def Info(data):
         ret_val = "{%s}" % command
         ret_val = ret_val.format(**val)
         if ret_val.startswith('/'):
-            ret_val = "http://readthedocs.org%s" % ret_val
+            ret_val = "http://%s%s" % (PRODUCTION_DOMAIN, ret_val)
         return ret_val
     except Exception, e:
         print "Error: %s" % e
@@ -108,7 +110,7 @@ def Status(data):
         obj = val['objects'][0]
         status = "Passed" if obj['success'] else "Failed"
         date = parser.parse(obj['date'])
-        ret_val = "%s: http://readthedocs.org%s (%s)" % (status, obj['absolute_url'], timesince(date))
+        ret_val = "%s: http://%s%s (%s)" % (PRODUCTION_DOMAIN, status, obj['absolute_url'], timesince(date))
         return ret_val
     except Exception, e:
         print "Status Error: %s" % e
@@ -125,7 +127,7 @@ def Search(data):
         text = val['objects'][0]['text']
         text = re.sub('<[^<]+?>', '', text)
         text = text[50:]
-        ret_val = "%s: http://readthedocs.org%s " % (name, url)
+        ret_val = "%s: http://%s%s " % (name, PRODUCTION_DOMAIN, url)
         return ret_val
     except Exception, e:
         print "Search failed: %s" % e
@@ -148,7 +150,7 @@ def Build(data):
         val = api.version('%s/%s' % (project, version)).build().get()
         ret_val = "Building" if val['building'] else "Failed"
         if ret_val.startswith('/'):
-            ret_val = "http://readthedocs.org%s" % ret_val
+            ret_val = "http://%s%s" % (PRODUCTION_DOMAIN, ret_val)
         return ret_val
     except Exception, e:
         print "Error: %s" % e
@@ -163,7 +165,7 @@ COMMANDS = {}
 for shit in shit_we_need:
     COMMANDS[string.lower(shit.__name__)] = shit
 
-api = slumber.API(base_url='http://readthedocs.org/api/v1/')
+api = slumber.API(base_url='http://%s/api/v1/' % PRODUCTION_DOMAIN)
 output()
 
 #val = api.project('pip').get()
